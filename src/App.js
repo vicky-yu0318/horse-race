@@ -1,55 +1,66 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 import _ from "lodash";
 import horse from "./images/horse.png";
 
 const horseCount = 7;
 const baseSpeed = 200; // ms per frame
-const trackLength = window.innerWidth - 30;
-console.log("trackLength :>> ", trackLength);
+const trackLength = window.innerWidth - 40;
 
 function App() {
   const [positions, setPositions] = useState(Array(horseCount).fill(0));
   const [bet, setBet] = useState(null);
   const [winner, setWinner] = useState(null);
-  const intervalRefs = useRef([]);
+  const intervalRef = useRef(null);
+  const [raceFinished, setRaceFinished] = useState(false);
+
+  // useEffect(() => {
+  //   console.log("positions :>> ", positions);
+  //   if (positions.every((pos) => pos >= trackLength) && winner) {
+  //     if (bet === winner) {
+  //       alert(`你猜對了，是 ${winner + 1} 號馬兒跑最快`);
+  //     } else {
+  //       alert(`你賭注輸了，是 ${winner + 1} 號馬兒跑最快`);
+  //     }
+  //   }
+  // }, [bet, positions, winner]);
 
   useEffect(() => {
-    if (positions.every((pos) => pos >= trackLength) && winner) {
+    if (raceFinished) {
       if (bet === winner) {
         alert(`你猜對了，是 ${winner + 1} 號馬兒跑最快`);
       } else {
         alert(`你賭注輸了，是 ${winner + 1} 號馬兒跑最快`);
       }
+      setRaceFinished(false); // Reset the race finished flag
     }
-  }, [winner, bet, positions]);
+  }, [raceFinished, bet, winner]);
 
   const startRace = () => {
-    intervalRefs.current.forEach(clearInterval);
+    clearInterval(intervalRef.current);
     let isFirst = false;
-    intervalRefs.current = positions.map((pos, index) => {
-      const runDistance = pos + Math.random() * 50;
-      return setInterval(() => {
-        setPositions((prevPositions) => {
-          const newPositions = [...prevPositions];
-          newPositions[index] =
-            runDistance + newPositions[index] > trackLength
-              ? trackLength
-              : runDistance + newPositions[index];
 
-          // console.log("newPositions :>> ", newPositions);
-          if (newPositions[index] >= trackLength) {
-            clearInterval(intervalRefs.current[index]);
+    intervalRef.current = setInterval(() => {
+      setPositions((prevPositions) => {
+        const newPositions = prevPositions.map((pos, index) => {
+          const runDistance = ((trackLength * 1) / 100) * Math.random();
+          const newPosition =
+            pos + runDistance > trackLength ? trackLength : pos + runDistance;
 
-            if (!winner && !isFirst) {
-              isFirst = true;
-              setWinner(index);
-            }
+          if (newPosition >= trackLength && !winner && !isFirst) {
+            isFirst = true;
+            setWinner(index);
+
+            setRaceFinished(true);
           }
-          return newPositions;
+
+          return newPosition;
         });
-      }, baseSpeed);
-    });
+
+        return newPositions;
+      });
+    }, baseSpeed);
+    // clearInterval(intervalRef.current);
   };
 
   const handleBet = (index) => {
@@ -72,8 +83,7 @@ function App() {
             }}
             onClick={() => handleBet(index)}
           >
-            {/* 🐎 */}
-            <img src={horse} alt="I am A" width={"30px"} />
+            <img src={horse} alt="horse" width={"30px"} />
           </div>
         ))}
       </div>
