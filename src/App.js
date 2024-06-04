@@ -1,77 +1,87 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
-const horses = [
-  "horse1",
-  "horse2",
-  "horse3",
-  "horse4",
-  "horse5",
-  "horse6",
-  "horse7",
-];
+// const horses = Array.from({ length: 7 }, (_, i) => ({
+//   id: i + 1,
+//   position: 0,
+//   speed: 20,
+// }));
 
 function App() {
-  const [bet, setBet] = useState(null);
+  const [bets, setBets] = useState(null);
   const [winner, setWinner] = useState(null);
-  const [positions, setPositions] = useState(Array(horses.length).fill(0));
-  const raceDurations = useMemo(
-    () => horses.map(() => Math.random() * 5000 + 1000),
-    []
+  const [horses, setHorses] = useState(
+    Array.from({ length: 7 }, (_, i) => ({
+      id: i + 1,
+      position: 0,
+      speed: 20,
+    }))
   );
 
-  const startRace = () => {
-    const newPositions = Array(horses.length).fill(0);
+  useEffect(() => {
+    if (winner) {
+      alert(
+        bets === winner
+          ? `你贏了！馬${winner}是最快的！`
+          : `你輸了。馬${winner}是最快的。`
+      );
+    }
+  }, [bets, winner]);
 
-    horses.forEach((_, index) => {
-      setTimeout(() => {
-        newPositions[index] = 100;
-
-        setPositions([...newPositions]);
-      }, raceDurations[index]);
-    });
+  const handleBet = (id) => {
+    if (!bets) setBets(id);
   };
 
-  useEffect(() => {
-    if (positions.every((pos) => pos === 100)) {
-      const winningHorse =
-        horses[raceDurations.indexOf(Math.min(...raceDurations))];
-      setWinner(winningHorse);
+  const startRace = () => {
+    const raceInterval = setInterval(() => {
+      let raceFinished = false;
+      const updatedHorses = horses.map((horse) => {
+        const newPosition = horse.position + horse.speed * (1 + Math.random());
+        console.log("newPosition :>> ", newPosition);
+        if (!raceFinished) {
+          const firstHourse = horses.find((hor) => hor.position >= 100);
+          setWinner(firstHourse?.id);
+          raceFinished = true;
+        }
 
-      if (bet && winner) {
-        setTimeout(() => {
-          alert(
-            bet === winner
-              ? `You won! ${winner} is the fastest!`
-              : `You lost! ${winner} is the fastest!`
-          );
-        }, 5000); //需要想想有沒有更好的方式，待馬跑完再出現 alert
+        return { ...horse, position: newPosition };
+      });
+
+      setHorses(horses.splice(0, horses.length, ...updatedHorses));
+
+      if (horses.every((hor) => hor.position >= 150)) {
+        console.log("winner :>> ", winner);
+
+        clearInterval(raceInterval);
       }
-    }
-  }, [bet, positions, raceDurations, winner]);
+    }, 1000);
+  };
 
   return (
     <div className="App">
-      <h1>Horse Race</h1>
-      <div className="race-track">
+      <h1>馬賽跑 winner{winner}</h1>
+      <div className="track" style={{ padding: "100px 0", overflow: "hidden" }}>
         {horses.map((horse, index) => (
           <div
-            key={horse}
+            key={horse.id}
             className="horse"
             style={{
-              bottom: index * 25,
-              left: `${positions[index]}%`,
-              transition: `left ${index - 0.5}s  ease-in-out`,
+              top: `${index * 35}px`,
+              left: `${horse.position}%`,
             }}
-            onClick={() => setBet(horse)}
+            onClick={() => handleBet(horse.id)}
           >
-            🐎
+            🐎 {horse.id}
           </div>
         ))}
       </div>
-      {bet && <button onClick={startRace}>Start Race</button>}
-      {bet && <h2>Your bet: {bet}</h2>}
-      {!bet && <h2>choose your bet horse</h2>}
+      {!bets && <div>先點選押注的馬匹</div>}
+      {bets && (
+        <button onClick={startRace} disabled={!!winner}>
+          開始賽跑
+        </button>
+      )}
+      {bets && !winner && <p>你押注的是馬{bets}</p>}
     </div>
   );
 }
