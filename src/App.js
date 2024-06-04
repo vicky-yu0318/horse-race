@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import _ from "lodash";
+import horse from "./images/horse.png";
 
 const horseCount = 7;
 const baseSpeed = 200; // ms per frame
-const trackLength = 100; // number of frames to complete the race
+const trackLength = window.innerWidth - 30;
+console.log("trackLength :>> ", trackLength);
 
 function App() {
-  const [positions, setPositions] = useState(Array(horseCount).fill(2));
+  const [positions, setPositions] = useState(Array(horseCount).fill(0));
   const [bet, setBet] = useState(null);
   const [winner, setWinner] = useState(null);
   const intervalRefs = useRef([]);
@@ -25,27 +27,28 @@ function App() {
   const startRace = () => {
     intervalRefs.current.forEach(clearInterval);
     let isFirst = false;
-    intervalRefs.current = positions.map((_, index) => {
-      const speedMultiplier = 0.5 + Math.random();
+    intervalRefs.current = positions.map((pos, index) => {
+      const runDistance = pos + Math.random() * 50;
       return setInterval(() => {
         setPositions((prevPositions) => {
           const newPositions = [...prevPositions];
-          newPositions[index] += 1;
+          newPositions[index] =
+            runDistance + newPositions[index] > trackLength
+              ? trackLength
+              : runDistance + newPositions[index];
+
+          // console.log("newPositions :>> ", newPositions);
           if (newPositions[index] >= trackLength) {
             clearInterval(intervalRefs.current[index]);
-            if (newPositions.every((pos) => pos >= trackLength)) {
-              console.log("newPositions :>> ", newPositions);
-              // setWinner(newPositions.indexOf(Math.max(...newPositions)));
-            }
+
             if (!winner && !isFirst) {
-              console.log("index :>> ", index);
               isFirst = true;
               setWinner(index);
             }
           }
           return newPositions;
         });
-      }, baseSpeed / speedMultiplier);
+      }, baseSpeed);
     });
   };
 
@@ -64,12 +67,13 @@ function App() {
             key={index}
             className="horse"
             style={{
-              left: `calc(${(position / trackLength) * 100}% - 40px)`,
+              left: position,
               top: `${index * 25}px`,
             }}
             onClick={() => handleBet(index)}
           >
-            🐎
+            {/* 🐎 */}
+            <img src={horse} alt="I am A" width={"30px"} />
           </div>
         ))}
       </div>
