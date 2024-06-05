@@ -12,30 +12,23 @@ function App() {
   const [bet, setBet] = useState(null);
   const [winner, setWinner] = useState(null);
   const intervalRef = useRef(null);
-  const [raceFinished, setRaceFinished] = useState(false);
-
-  // useEffect(() => {
-  //   console.log("positions :>> ", positions);
-  //   if (positions.every((pos) => pos >= trackLength) && winner) {
-  //     if (bet === winner) {
-  //       alert(`你猜對了，是 ${winner + 1} 號馬兒跑最快`);
-  //     } else {
-  //       alert(`你賭注輸了，是 ${winner + 1} 號馬兒跑最快`);
-  //     }
-  //   }
-  // }, [bet, positions, winner]);
 
   useEffect(() => {
-    // clearInterval(intervalRef.current);
-    if (raceFinished) {
+    if (positions.every((pos) => pos >= trackLength)) {
       if (bet === winner) {
         alert(`你猜對了，是 ${winner + 1} 號馬兒跑最快`);
       } else {
         alert(`你賭注輸了，是 ${winner + 1} 號馬兒跑最快`);
       }
-      setRaceFinished(false); // Reset the race finished flag
+      clearInterval(intervalRef.current);
     }
-  }, [raceFinished, bet, winner]);
+  }, [bet, winner, positions]);
+
+  const restartRace = () => {
+    setWinner(null);
+    setBet(null);
+    setPositions(Array(horseCount).fill(0));
+  };
 
   const startRace = () => {
     clearInterval(intervalRef.current);
@@ -48,16 +41,12 @@ function App() {
           const newPosition =
             pos + runDistance > trackLength ? trackLength : pos + runDistance;
 
-          if (newPosition >= trackLength && !_.isNumber(winner) && !isFirst) {
+          if (newPosition >= trackLength && !isFirst) {
             isFirst = true;
             setWinner(index);
-            clearInterval(intervalRef.current);
-            setRaceFinished(true);
           }
-
           return newPosition;
         });
-
         return newPositions;
       });
     }, baseSpeed);
@@ -91,6 +80,10 @@ function App() {
         <button onClick={startRace} disabled={winner !== null}>
           Start Race
         </button>
+      )}
+
+      {_.isNumber(bet) && _.isNumber(winner) && (
+        <button onClick={restartRace}>Restart Race</button>
       )}
       {!_.isNumber(bet) && <h2>請點選馬匹下注哪批馬兒跑最快</h2>}
       {_.isNumber(bet) && <div>你賭注{bet + 1}號小馬跑最快</div>}
