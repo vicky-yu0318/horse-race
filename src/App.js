@@ -26,6 +26,7 @@ function App() {
   // }, [bet, positions, winner]);
 
   useEffect(() => {
+    // clearInterval(intervalRef.current);
     if (raceFinished) {
       if (bet === winner) {
         alert(`你猜對了，是 ${winner + 1} 號馬兒跑最快`);
@@ -43,14 +44,14 @@ function App() {
     intervalRef.current = setInterval(() => {
       setPositions((prevPositions) => {
         const newPositions = prevPositions.map((pos, index) => {
-          const runDistance = ((trackLength * 1) / 100) * Math.random();
+          const runDistance = ((trackLength * 1) / 100) * (0.5 + Math.random());
           const newPosition =
             pos + runDistance > trackLength ? trackLength : pos + runDistance;
 
-          if (newPosition >= trackLength && !winner && !isFirst) {
+          if (newPosition >= trackLength && !_.isNumber(winner) && !isFirst) {
             isFirst = true;
             setWinner(index);
-
+            clearInterval(intervalRef.current);
             setRaceFinished(true);
           }
 
@@ -60,7 +61,6 @@ function App() {
         return newPositions;
       });
     }, baseSpeed);
-    // clearInterval(intervalRef.current);
   };
 
   const handleBet = (index) => {
