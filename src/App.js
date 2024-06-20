@@ -1,9 +1,7 @@
+import "./App.css";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Peer } from "peerjs";
-import "./App.css";
 import _ from "lodash";
-import horse from "./images/horse.png";
-import MosqueIcon from "@mui/icons-material/Mosque";
 import { useForm } from "react-hook-form";
 import {
   Box,
@@ -19,6 +17,8 @@ import {
 } from "@mui/material";
 import { styled, createTheme, ThemeProvider } from "@mui/material/styles";
 import { tableCellClasses } from "@mui/material/TableCell";
+import horseImage from "./images/horse.png";
+import MosqueIcon from "@mui/icons-material/Mosque";
 import ClipboardComponent from "./component/ClipboardComponent";
 
 const horseCount = 7;
@@ -29,9 +29,9 @@ function App() {
   const [bet, setBet] = useState(null);
   const [winner, setWinner] = useState(null);
   const [raceResults, setRaceResults] = useState([]);
-  const [players, setPlayers] = useState();
-  const intervalRef = useRef(null);
+  const [players, setPlayers] = useState([]);
   const [baseSpeed, setBaseSpeed] = useState(200);
+  const intervalRef = useRef(null);
 
   const [inputMainId, setInputMainId] = useState("");
   const [inputMyName, setInputMyName] = useState("");
@@ -45,8 +45,6 @@ function App() {
 
   const {
     register,
-    handleSubmit,
-    trigger,
     watch,
     formState: { errors, isValid },
   } = useForm({
@@ -68,15 +66,15 @@ function App() {
       setMyid(id);
     });
 
-    // TODO: 其他人連線進來時觸發
+    // TODO: 其他人連線進來時，房主 conns 觸發
     peerRef.current.on("connection", (conn) => {
       // console.log("連進來的 id :>> ", conn.peer);
       setIsConnected(conn.peer);
       // conns[conn.peer] = conn;
-      setConns((preConns) => ({ ...preConns, [conn.peer]: conn })); // 多人連入
+      setConns((prevConns) => ({ ...prevConns, [conn.peer]: conn })); // 多人連入
     });
 
-    // 清理函数，组件卸载时销毁 Peer 实例
+    // 清理函数
     return () => {
       peerRef.current.destroy();
     };
@@ -85,7 +83,7 @@ function App() {
   // TODO: 其他人手動連線
   const handleConnect = () => {
     const conn = peerRef.current.connect(inputMainId); // 連接到屋主 Peer
-    console.log("其他人連接成功: "); // conn.peer 為屋主 id
+    // console.log("其他人連接成功: "); // conn.peer 為屋主 id
     setConns({ main: conn });
     // connRef.current["main"] = conn;
   };
@@ -94,8 +92,6 @@ function App() {
   const handleIncomingData = useCallback(
     (data) => {
       const newData = JSON.parse(data);
-      // console.log("newData :>> ", newData);
-
       switch (newData.type) {
         case "position":
           setPositions(newData.positions);
@@ -103,72 +99,33 @@ function App() {
         case "raceResults":
           setRaceResults(newData.rankTime);
           break;
+        case "winner":
+          setWinner(newData.winner);
+          break;
         case "restartRace":
           setWinner(null);
           setBet(null);
           setPositions(Array(horseCount).fill(0));
           setRaceResults([]);
           break;
-
         case "player":
-          // console.log("newData物件");
           if (!players) {
-            // 首次 undefined
             setPlayers(newData);
           } else {
             let combined;
             if (Array.isArray(players)) {
-              // console.log("player 是陣列");
+              // console.log("players 是陣列");
               combined = _.concat(newData.players, players);
             } else {
-              // console.log("player 是物件");
+              // console.log("players 是物件");
               // 先合併兩個陣列
               combined = _.concat(newData.players, players.players);
             }
-            // 使用 _.unionBy 來基於 id 去重，並保留 timestamp 較新的物件
+            // 基於 id 去重複，並保留 timestamp 較新的物件
             let merged = _.unionBy(combined, "id");
             setPlayers(merged);
           }
-
           break;
-
-        // if (Array.isArray(newData.players)) {
-        //   console.log("跑陣列", newData.players);
-        //   console.log("players :>> ", players);
-        //   if (!players.length) {
-        //     console.log("players 非陣列");
-        //     const updatedPlayers = [...newData.players];
-        //     console.log("updatedPlayers :>> ", updatedPlayers);
-        //     setPlayers(updatedPlayers);
-        //   } else {
-        //     console.log("players 是陣列");
-        //     const mergedArray = players.map((obj1) => {
-        //       const newObj = newData.players.find(
-        //         (obj2) => obj2.id === obj1.id
-        //       );
-        //       return newObj ? newObj : obj1;
-        //     });
-        //     console.log("mergedArray :>> ", mergedArray);
-        //     setPlayers(mergedArray);
-        //   }
-        // } else {
-        //   console.log("跑物件", newData.players);
-        //   let updatedPlayers;
-        //   const isPlayerExist = _.some(
-        //     players,
-        //     (player) => player.id === newData.players.id
-        //   );
-        //   if (isPlayerExist) {
-        //     const newData2 = _.map(players, (player) =>
-        //       player.id === newData.players.id ? newData.players : player
-        //     );
-        //     updatedPlayers = [...newData2];
-        //   } else {
-        //     updatedPlayers = [...players, newData];
-        //   }
-        //   setPlayers(updatedPlayers);
-        // }
-
         default:
           break;
       }
@@ -176,20 +133,20 @@ function App() {
     [players]
   );
 
-  // TODO: (3) 接收 (2) send 的資料 （此 data, 雙方都會出現）
+  // TODO: (3) conns 被觸發，接收 (2) send 的資料 （此 data, 雙方都會出現）
   useEffect(() => {
-    if (!conns) return; // conns 有所有連入的人 conn(物件)
+    if (_.isEmpty(conns)) return; // conns 為所有其他連入玩家conn(物件)不含房主
 
     _.forEach(conns, (conn) => {
       conn.on("data", (data) => {
-        // conn.peer 為所有連入的人 id
-        // console.log("接收 2 send 的資料:", data);
+        // conn.peer 為所有連入其他人 id
+        // console.log("接收 (2) send 的資料:", data);
         handleIncomingData(data);
       });
     });
   }, [conns, handleIncomingData]);
 
-  // TODO: (2) 觸發 players, 房主實際廣播
+  // TODO: (2) 房主廣播 -> 觸發 (3) conns
   const prevPlayersRef = useRef(players);
   useEffect(() => {
     if (!_.isEqual(prevPlayersRef.current, players)) {
@@ -204,10 +161,10 @@ function App() {
     }
   }, [conns, players]);
 
-  // TODO: (1) 其他人手動傳送資料到屋主
+  // TODO: (1) 其他人手動傳送資料到房主 -> 觸發 (3) conns
   const handlePlayerData = useCallback(() => {
     if (!inputMainId) {
-      alert("請輸入欲連線 id");
+      alert("請輸入欲連線房住的 id");
       return;
     }
     if (!inputMyName) {
@@ -219,28 +176,27 @@ function App() {
       type: "player",
       players: [
         {
-          role: "general",
+          role: "general player",
           id: myid,
           player: inputMyName,
           betHorse: _.isNumber(bet) ? bet + 1 : null,
         },
       ],
     };
-
     const strNewBroadcastData = JSON.stringify(newBroadcastData);
 
-    // 连接存在并且已经打开：在发送数据前检查连接是否存在并且已经打开
+    // 連線存在並且已經開啟：在發送資料之前檢查連線是否存在並且已經開啟
     // if (connRef.current["main"] && connRef.current["main"].open) {
     if (conns["main"] && conns["main"].open) {
-      // connRef.current["main"].send(data);
+      // connRef.current["main"].send(strNewBroadcastData);
       conns["main"].send(strNewBroadcastData); // 其他人傳物件
     }
   }, [bet, conns, inputMainId, inputMyName, myid]);
 
-  // TODO: (1) 屋主傳遞自己資料 -> 觸發 players
+  // TODO: (1) 房主傳遞自己資料 -> 觸發 (2) players
   const handleMainData = useCallback(() => {
     const newBroadcastData = {
-      role: "main",
+      role: "host player",
       id: myid,
       player: inputMyName,
       betHorse: _.isNumber(bet) ? bet + 1 : null,
@@ -251,44 +207,27 @@ function App() {
       (player) => player.id === newBroadcastData.id
     );
     if (isPlayerExist) {
-      const newData2 = _.map(players, (player) =>
+      const newData = _.map(players, (player) =>
         player.id === newBroadcastData.id ? newBroadcastData : player
       );
-      setPlayers(newData2);
+      setPlayers(newData);
     } else {
-      setPlayers((prePlayers) => [...prePlayers, newBroadcastData]);
+      setPlayers((prevPlayers) => [...prevPlayers, newBroadcastData]);
     }
   }, [bet, inputMyName, myid, players]);
 
   //  ================================
-
-  // TODO: (2-1) 觸發 broadcastData, 房主實際廣播
-  // const broadcastDataRef = useRef(broadcastData);
-  // useEffect(() => {
-  //   console.log("broadcastData :>> ", broadcastData);
-  // if (!_.isEqual(broadcastDataRef.current, broadcastData)) {
-  //   _.forEach(conns, (conn) => conn.send(JSON.stringify(broadcastData))); // 屋主傳陣列
-  // broadcastDataRef.current = broadcastData;
-  // }
-  // }, [broadcastData, conns]);
-
-  // TODO: (1-1) 屋主傳馬匹所在位置，賭注勝負資訊
-  // const handleMainUpdateData = useCallback((updateData) => {
-  //   console.log("updateData :>> ", updateData);
-  //   setBroadcastData(updateData);
-  // }, []);
-
+  // TODO: (1-1) 房主廣播 馬匹所在位置，或賭注勝負資訊
   const handleMainUpdateData = (updateData) => {
     setBroadcastData((prevData) => {
       const newData = { ...prevData, ...updateData };
-      // 立即處理新的數據
       _.forEach(conns, (conn) => conn.send(JSON.stringify(newData)));
       return newData;
     });
   };
 
+  // TODO: 任何人(房主 or 其他玩家) 選擇賭注馬匹觸發 1-1 -> 3 -> 4
   const previousBetRef = useRef();
-
   useEffect(() => {
     if (_.isNumber(bet) && previousBetRef.current !== bet) {
       if (isConnected) {
@@ -301,38 +240,6 @@ function App() {
   }, [bet, handleMainData, handlePlayerData, isConnected]);
 
   // =====================================================
-
-  const theme = createTheme({
-    palette: {
-      primary: {
-        main: "#ccc",
-      },
-      secondary: {
-        main: "#edf2ff",
-      },
-    },
-  });
-
-  const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    [`&.${tableCellClasses.head}`]: {
-      backgroundColor: theme.palette.common.black,
-      color: theme.palette.common.white,
-    },
-    [`&.${tableCellClasses.body}`]: {
-      fontSize: 14,
-    },
-  }));
-
-  const StyledTableRow = styled(TableRow)(({ theme }) => ({
-    "&:nth-of-type(odd)": {
-      backgroundColor: theme.palette.primary.main,
-    },
-    // hide last border
-    "&:last-child td, &:last-child th": {
-      border: 0,
-    },
-  }));
-
   useEffect(() => {
     if (positions.every((pos) => pos >= trackLength)) {
       clearInterval(intervalRef.current);
@@ -362,7 +269,7 @@ function App() {
   };
 
   const startRace = () => {
-    if (funcIsBetNull()) {
+    if (funcIsBetNull() || !players) {
       alert("請所有玩家點選賭注的馬匹");
       return;
     }
@@ -382,7 +289,7 @@ function App() {
           if (newPosition >= trackLength && !isFirst) {
             isFirst = true;
             setWinner(index);
-            // broadcastData({ type: "winner", winner: index });
+            handleMainUpdateData({ type: "winner", winner: index });
           }
           const finishAry = _.map(times, (time) => time.i);
 
@@ -425,11 +332,41 @@ function App() {
     }
   };
 
+  // =====================================================
+  const theme = createTheme({
+    palette: {
+      primary: {
+        main: "#ccc",
+      },
+      secondary: {
+        main: "#edf2ff",
+      },
+    },
+  });
+
+  const StyledTableCell = styled(TableCell)(({ theme }) => ({
+    [`&.${tableCellClasses.head}`]: {
+      backgroundColor: theme.palette.common.black,
+      color: theme.palette.common.white,
+    },
+    [`&.${tableCellClasses.body}`]: {
+      fontSize: 14,
+    },
+  }));
+
+  const StyledTableRow = styled(TableRow)(({ theme }) => ({
+    "&:nth-of-type(odd)": {
+      backgroundColor: theme.palette.primary.main,
+    },
+    // hide last border
+    "&:last-child td, &:last-child th": {
+      border: 0,
+    },
+  }));
+
   return (
     <ThemeProvider theme={theme}>
       <div className="App">
-        {/* players:{JSON.stringify(players)} */}
-        {/* raceResults:{JSON.stringify(raceResults)} */}
         <ClipboardComponent myid={myid} />
         {!isConnected && (
           <TextField
@@ -450,12 +387,14 @@ function App() {
           variant="outlined"
           style={{ marginBottom: "10px", width: "100%" }}
         />
-        {!isConnected && <button onClick={handleConnect}>連線</button>}
+        {!isConnected && _.isEmpty(conns) && (
+          <button onClick={handleConnect}>連線</button>
+        )}
         {!isConnected && (
           <button onClick={handlePlayerData}>其他玩家填好資料傳送</button>
         )}
         {isConnected && (
-          <button onClick={handleMainData}>屋主填好資料傳送</button>
+          <button onClick={handleMainData}>房主填好資料傳送</button>
         )}
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ textAlign: "center" }}>Horse Race</h1>
@@ -469,7 +408,7 @@ function App() {
               <label>Base Speed:</label>
               <div>
                 <input
-                  // onChange={handleChange}
+                  disabled={!isConnected}
                   type="text"
                   defaultValue={baseSpeed}
                   {...register("baseSpeed", {
@@ -510,7 +449,7 @@ function App() {
                 onClick={() => handleBet(index)}
               >
                 <img
-                  src={horse}
+                  src={horseImage}
                   alt="horse"
                   width={"30px"}
                   style={{ opacity: errors.baseSpeed ? 0.5 : 1 }}
@@ -558,7 +497,21 @@ function App() {
                     <TableCell component="th" scope="row">
                       {index + 1}
                     </TableCell>
-                    <TableCell align="center">{result.horse}</TableCell>
+                    <TableCell align="center">
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        sx={{
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Box>
+                          {result.horse === winner + 1 && <MosqueIcon />}
+                        </Box>
+                        <Box>{result.horse}</Box>
+                      </Stack>
+                    </TableCell>
                     <TableCell align="right">{result.time}</TableCell>
                   </StyledTableRow>
                 ))}
@@ -590,13 +543,30 @@ function App() {
                         gap={0.5}
                         sx={{ alignItems: "center" }}
                       >
-                        <Box>{player.role === "main" && <MosqueIcon />}</Box>
+                        <Box>
+                          {player.role === "host player" && <MosqueIcon />}
+                        </Box>
                         <Box>{player.role}</Box>
                       </Stack>
                     </TableCell>
                     <TableCell align="center">{player.id}</TableCell>
                     <TableCell align="right">{player.player}</TableCell>
-                    <TableCell align="right">{player.betHorse}</TableCell>
+                    <TableCell align="right">
+                      <Stack
+                        direction="row"
+                        gap={0.5}
+                        sx={{
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        <Box>
+                          {_.isNumber(winner) &&
+                            player.betHorse === winner + 1 && <MosqueIcon />}
+                        </Box>
+                        <Box>{player.betHorse}</Box>
+                      </Stack>
+                    </TableCell>
                   </StyledTableRow>
                 ))}
               </TableBody>
@@ -607,5 +577,4 @@ function App() {
     </ThemeProvider>
   );
 }
-
 export default App;
