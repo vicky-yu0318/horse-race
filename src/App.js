@@ -14,6 +14,7 @@ import {
   TableBody,
   TableCell,
   TextField,
+  FormHelperText,
 } from "@mui/material";
 import { styled, createTheme, ThemeProvider } from "@mui/material/styles";
 import { tableCellClasses } from "@mui/material/TableCell";
@@ -73,8 +74,6 @@ function App() {
       // conns[conn.peer] = conn;
       setConns((prevConns) => ({ ...prevConns, [conn.peer]: conn })); // 多人連入
     });
-
-    // 清理函数
     return () => {
       peerRef.current.destroy();
     };
@@ -118,11 +117,9 @@ function App() {
               combined = _.concat(newData.players, players);
             } else {
               // console.log("players 是物件");
-              // 先合併兩個陣列
               combined = _.concat(newData.players, players.players);
             }
-            // 基於 id 去重複，並保留 timestamp 較新的物件
-            let merged = _.unionBy(combined, "id");
+            let merged = _.unionBy(combined, "id"); // 基於 id 去重複，並保留 timestamp 較新的物件
             setPlayers(merged);
           }
           break;
@@ -324,7 +321,7 @@ function App() {
 
   const handleBet = (index) => {
     if (errors.baseSpeed) {
-      alert("please enter the correct base speed");
+      alert("請輸入正確的 baseSpeed ");
       return;
     }
     if (winner === null) {
@@ -358,9 +355,8 @@ function App() {
     "&:nth-of-type(odd)": {
       backgroundColor: theme.palette.primary.main,
     },
-    // hide last border
     "&:last-child td, &:last-child th": {
-      border: 0,
+      border: 0, // hide last border
     },
   }));
 
@@ -377,9 +373,6 @@ function App() {
             style={{ marginBottom: "10px", width: "100%" }}
           />
         )}
-        {/* <button onClick={() => prompt("請輸入要連接的 Peer ID:")}>
-          連接到其他 Peer
-        </button> */}
         <TextField
           label={"我的名字"}
           value={inputMyName}
@@ -406,26 +399,50 @@ function App() {
           >
             <div>
               <label>Base Speed:</label>
-              <div>
-                <input
+              <Box sx={{ mb: 5 }}>
+                <TextField
                   disabled={!isConnected}
-                  type="text"
+                  type="number"
                   defaultValue={baseSpeed}
+                  // error={!!errors.baseSpeed}
+                  // helperText={errors.baseSpeed ? errors.baseSpeed.message : ""}
                   {...register("baseSpeed", {
                     required: "必填欄位",
                     pattern: {
                       value: /^\d+$/,
                       message: "只能輸入數字",
                     },
+                    min: {
+                      value: 1,
+                      message: "範圍為1-1000",
+                    },
+                    max: {
+                      value: 1000,
+                      message: "範圍為1-1000",
+                    },
                   })}
+                  sx={{
+                    height: "30px", // 自訂高度
+                    "& .MuiInputBase-root": {
+                      height: "100%", // 確保內部 input 的高度也一致
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "10px 8px", // 自訂內部 padding
+                    },
+                  }}
                 />
+                <FormHelperText
+                  error={!!errors.baseSpeed}
+                  sx={{ textAlign: "left" }}
+                >
+                  {errors.baseSpeed ? errors.baseSpeed.message : ""}
+                </FormHelperText>
                 {/* <input
                 type="submit"
                 disabled={!isValid}
-                style={{ marginLeft: 5 }}
               /> */}
-              </div>
-              {errors.baseSpeed && (
+              </Box>
+              {/* {errors.baseSpeed && (
                 <div>
                   {
                     <span style={{ color: "red" }}>
@@ -433,7 +450,7 @@ function App() {
                     </span>
                   }
                 </div>
-              )}
+              )} */}
               {!errors.baseSpeed && <div style={{ padding: "11px 0" }}></div>}
             </div>
           </form>
@@ -464,16 +481,16 @@ function App() {
             }}
           >
             {_.isNumber(bet) && isConnected && (
-              <button
+              <Box
                 onClick={startRace}
                 disabled={winner !== null}
-                style={{ marginRight: 1 }}
+                sx={{ mr: 1 }}
               >
                 Start Race
-              </button>
+              </Box>
             )}
             {_.isNumber(bet) && _.isNumber(winner) && (
-              <button onClick={restartRace}>Restart Race</button>
+              <Box onClick={restartRace}>Restart Race</Box>
             )}
             {!_.isNumber(bet) && !errors.baseSpeed && (
               <h3>請點選馬匹下注哪批馬兒跑最快</h3>
